@@ -1,0 +1,196 @@
++------------------------------------------------+
+| Start                                          |
++------------------------------------------------+
+        |
+        v
++-----------------------------+
+| Connect to Database         |
++-----------------------------+
+        |
+        v
++-----------------------------+
+| Fetch Current Date          |
++-----------------------------+
+        |
+        v
++-----------------------------+
+| Query BloodInventory Table  |
+| for Expired Blood Bottles   |
+| (WHERE ExpiryDate < Now())  |
++-----------------------------+
+        |
+        v
++-----------------------------+
+| Check if Expired Bottles    |
+| Exist                       |
++-----------------------------+
+        |
+        +---------- Yes ------------+
+        |                            |
+        |                            v
+        |               +-----------------------------+
+        |               | Delete Expired Blood Bottles|
+        |               | from BloodInventory Table   |
+        |               +-----------------------------+
+        |                            |
+        |                            v
+        |               +-----------------------------+
+        |               | Confirmation Message        |
+        |               +-----------------------------+
+        |                            |
+        v                            v
++-----------------------------+    +-----------------------------+
+| No Expired Blood Bottles    |    | Expired Bottles Deleted     |
++-----------------------------+    +-----------------------------+
+        |                            |
+        v                            v
++------------------------------------------------+
+| End                                            |
++------------------------------------------------+
+
+
+============================================================================================================================================================================
+=============================================================================================================================================================================]
+
+
+
+
+
+
++------------------+      +-----------------------+
+|   BloodBank      |      |   BloodDonationCamp   |
+|------------------|      |-----------------------|
+| BloodBankID (PK) | 1 -> | BloodDonationCampID(PK)|
+| BloodBankName    |      | CampName              |
+| Address          |      | Address               |
+| City             |      | City                  |
+| ContactNumber    |      | BloodBankID (FK)     -|
+| UserID           |      | CampStartDate         |
+| Password         |      | CampEndDate           |
++------------------+      +-----------------------+
+
++------------------+      +-----------------------+
+|   BloodInventory |      |   BloodDonor          |
+|------------------|      |-----------------------|
+| BloodInventoryID | (PK) | BloodDonorID (PK)     |
+| BloodGroup       |      | FirstName             |
+| NumberofBottles  |      | LastName              |
+| BloodBankID (FK) |  ->  | Address               |
+| ExpiryDate       |      | City                  |
++------------------+      | MobileNo              |
+                           | BloodGroup            |
+                           +-----------------------+
+
++-------------------------+      +-----------------------+
+|    BloodDonorDonation   |      |      Hospital         |
+|-------------------------|      |-----------------------|
+| BloodDonationID (PK)    |      | HospitalID (PK)       |
+| BloodDonorID (FK)      -|->    | HospitalName          |
+| BloodDonationDate       |      | Address               |
+| NumberofBottle          |      | City                  |
+| Weight                  |      | ContactNo             |
+| HBCount                 |      +-----------------------+
++-------------------------+
+
+==========================================================================================================================================================================
+=================================================================================-========0p-[============================================================================
+
+BloodBank (BloodBankID) 
+    1 --> * BloodDonationCamp (BloodBankID)
+    1 --> * BloodInventory (BloodBankID)
+    
+BloodDonor (BloodDonorID)
+    1 --> * BloodDonorDonation (BloodDonorID)
+
+BloodDonationCamp (BloodDonationCampID)
+    * <-- 1 BloodBank (BloodBankID)
+
+Hospital (HospitalID)
+
+BloodDonorDonation (BloodDonationID)
+    * <-- 1 BloodDonor (BloodDonorID)
+
+BloodInventory (BloodInventoryID)
+    * <-- 1 BloodBank (BloodBankID)
+
+==========================================================================================================================================================================
+=================================================================================-========0p-[============================================================================
+
+
+-- BloodBank Table
+CREATE TABLE BloodBank (
+    BloodBankID INT PRIMARY KEY IDENTITY(1,1),
+    BloodBankName NVARCHAR(100) NOT NULL,
+    Address NVARCHAR(255) NOT NULL,
+    City NVARCHAR(100) NOT NULL,
+    ContactNumber NVARCHAR(15) NOT NULL CHECK (ContactNumber LIKE '[0-9]%'),
+    UserID NVARCHAR(50) UNIQUE NOT NULL,
+    Password NVARCHAR(255) NOT NULL
+);
+CREATE INDEX IX_BloodBank_UserID ON BloodBank(UserID);
+
+-- BloodDonor Table
+CREATE TABLE BloodDonor (
+    BloodDonorID INT PRIMARY KEY IDENTITY(1,1),
+    FirstName NVARCHAR(100) NOT NULL,
+    LastName NVARCHAR(100) NOT NULL,
+    Address NVARCHAR(255) NOT NULL,
+    City NVARCHAR(100) NOT NULL,
+    MobileNo NVARCHAR(15) NOT NULL CHECK (MobileNo LIKE '[0-9]%'),
+    BloodGroup NVARCHAR(3) NOT NULL CHECK (BloodGroup IN ('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'))
+);
+CREATE INDEX IX_BloodDonor_BloodGroup ON BloodDonor(BloodGroup);
+CREATE INDEX IX_BloodDonor_MobileNo ON BloodDonor(MobileNo);
+
+-- BloodDonationCamp Table
+CREATE TABLE BloodDonationCamp (
+    BloodDonationCampID INT PRIMARY KEY IDENTITY(1,1),
+    CampName NVARCHAR(100) NOT NULL,
+    Address NVARCHAR(255) NOT NULL,
+    City NVARCHAR(100) NOT NULL,
+    BloodBankID INT NOT NULL FOREIGN KEY REFERENCES BloodBank(BloodBankID),
+    CampStartDate DATE NOT NULL,
+    CampEndDate DATE NOT NULL CHECK (CampEndDate >= CampStartDate)
+);
+CREATE INDEX IX_BloodDonationCamp_BloodBankID ON BloodDonationCamp(BloodBankID);
+
+-- Hospital Table
+CREATE TABLE Hospital (
+    HospitalID INT PRIMARY KEY IDENTITY(1,1),
+    HospitalName NVARCHAR(100) NOT NULL,
+    Address NVARCHAR(255) NOT NULL,
+    City NVARCHAR(100) NOT NULL,
+    ContactNo NVARCHAR(15) NOT NULL CHECK (ContactNo LIKE '[0-9]%')
+);
+CREATE INDEX IX_Hospital_ContactNo ON Hospital(ContactNo);
+
+-- BloodDonorDonation Table
+CREATE TABLE BloodDonorDonation (
+    BloodDonationID INT PRIMARY KEY IDENTITY(1,1),
+    BloodDonorID INT NOT NULL FOREIGN KEY REFERENCES BloodDonor(BloodDonorID),
+    BloodDonationDate DATE NOT NULL,
+    NumberofBottle INT NOT NULL CHECK (NumberofBottle > 0),
+    Weight FLOAT NOT NULL CHECK (Weight > 0),
+    HBCount FLOAT NOT NULL CHECK (HBCount > 0)
+);
+CREATE INDEX IX_BloodDonorDonation_BloodDonorID ON BloodDonorDonation;
+CREATE INDEX IX_BloodDonorDonation_BloodDonationDate ON BloodDonorDonation(BloodDonationDate);
+
+-- BloodInventory Table
+CREATE TABLE BloodInventory (
+    BloodInventoryID INT PRIMARY KEY IDENTITY(1,1),
+    BloodGroup NVARCHAR(3) NOT NULL CHECK (BloodGroup IN ('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-')),
+    NumberofBottles INT NOT NULL CHECK (NumberofBottles >= 0),
+    BloodBankID INT NOT NULL FOREIGN KEY REFERENCES BloodBank(BloodBankID),
+    ExpiryDate DATE NOT NULL
+);
+CREATE INDEX IX_BloodInventory_BloodGroup ON BloodInventory(BloodGroup);
+CREATE INDEX IX_BloodInventory_ExpiryDate ON BloodInventory(ExpiryDate);
+
+
+
+==========================================================================================================================================================================
+=================================================================================-========0p-[============================================================================
+
+
+
